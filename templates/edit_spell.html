@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Spell Combo - Spell Combos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body>
+    <header>
+        <h1>Edit Spell Combo</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('profile', username=current_user.username) }}" class="button">Back to Profile</a>
+            <a href="{{ url_for('index') }}" class="button secondary">Back to List</a>
+        </div>
+    </header>
+
+    <main>
+        <form method="POST" action="{{ url_for('edit_combo', cid=combo.id) }}">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" value="{{ combo.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="spells">Spells *</label>
+                <textarea id="spells" name="spells" required placeholder="List the spells used in this combo">{{ combo.spells }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Describe how this combo works">{{ combo.description }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="requirement">Requirement</label>
+                <input type="text" id="requirement" name="requirement" value="{{ combo.requirement }}" placeholder="Any special requirements for this combo">
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags</label>
+                <input type="text" id="tags" name="tags" value="{{ combo.tags }}" placeholder="Comma-separated tags">
+            </div>
+
+            <div class="form-group">
+                <label for="creator">Creator</label>
+                <input type="text" id="creator" name="creator" value="{{ combo.creator }}" placeholder="Your name or nickname">
+                <small class="form-text">You can modify this field if needed</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="button primary">Save Changes</button>
+                <a href="{{ url_for('profile', username=current_user.username) }}" class="button secondary">Cancel</a>
+            </div>
+        </form>
+    </main>
+
+    <footer>
+        <p>Spell Combos Database - Created with Flask and HTMX</p>
+        <p><a href="{{ url_for('index') }}">Home</a> | <a href="{{ url_for('privacy') }}">Privacy Notice</a></p>
+    </footer>
+</body>
+</html>

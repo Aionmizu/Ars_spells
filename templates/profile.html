@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ username }}'s Profile - Spell Combos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body>
+    <header>
+        <h1>{{ username }}'s Profile</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('index') }}" class="button">Back to List</a>
+            {% if current_user.is_authenticated and current_user.username == username %}
+                <a href="{{ url_for('add_combo') }}" class="button">Add New Combo</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main>
+        <div class="profile-info">
+            <h2>Spells created by {{ username }}</h2>
+            {% if combos|length == 0 %}
+                <p>No spells found.</p>
+            {% endif %}
+        </div>
+
+        {% if combos|length > 0 %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Spells</th>
+                    <th>Description</th>
+                    <th>Requirement</th>
+                    <th>Tags</th>
+                    <th>Rating</th>
+                    <th>Patched?</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for combo in combos %}
+                <tr class="{% if combo.patched %}patched{% endif %}">
+                    <td>{{ combo.name }}</td>
+                    <td>{{ combo.spells }}</td>
+                    <td>{{ combo.description }}</td>
+                    <td>{{ combo.requirement }}</td>
+                    <td>{{ combo.tags }}</td>
+                    <td id="rating-{{ combo.id }}" 
+                        hx-get="{{ url_for('get_rating', cid=combo.id) }}" 
+                        hx-trigger="load">
+                        Loading...
+                    </td>
+                    <td>{{ "Yes" if combo.patched else "No" }}</td>
+                    <td class="actions">
+                        <div class="action-buttons">
+                            <div class="vote-buttons">
+                                <button class="vote-btn" 
+                                        hx-post="{{ url_for('vote', cid=combo.id) }}" 
+                                        hx-vals='{"vote": "1"}' 
+                                        hx-target="#rating-{{ combo.id }}" 
+                                        hx-swap="innerHTML">
+                                    👍
+                                </button>
+                                <button class="vote-btn" 
+                                        hx-post="{{ url_for('vote', cid=combo.id) }}" 
+                                        hx-vals='{"vote": "0"}' 
+                                        hx-target="#rating-{{ combo.id }}" 
+                                        hx-swap="innerHTML">
+                                    👎
+                                </button>
+                            </div>
+                            {% if current_user.is_authenticated and current_user.username == username %}
+                            <div class="owner-actions">
+                                <a href="{{ url_for('edit_combo', cid=combo.id) }}" class="button small">Edit</a>
+                                <button class="button small danger"
+                                        hx-delete="{{ url_for('delete_combo', cid=combo.id) }}"
+                                        hx-confirm="Are you sure you want to delete this combo?"
+                                        hx-target="closest tr"
+                                        hx-swap="outerHTML swap:1s">
+                                    Delete
+                                </button>
+                            </div>
+                            {% endif %}
+                            <div class="report-dropdown">
+                                <button class="report-btn">Report ⚠️</button>
+                                <div class="report-options">
+                                    <button class="report-option"
+                                            hx-post="{{ url_for('report', cid=combo.id) }}"
+                                            hx-vals='{"type": "inappropriate"}'
+                                            hx-confirm="Report this combo as inappropriate?">
+                                        Inappropriate
+                                    </button>
+                                    <button class="report-option"
+                                            hx-post="{{ url_for('report', cid=combo.id) }}"
+                                            hx-vals='{"type": "patched"}'
+                                            hx-confirm="Report this combo as patched?">
+                                        Patched
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </main>
+
+    <footer>
+        <p>Spell Combos Database - Created with Flask and HTMX</p>
+        <p><a href="{{ url_for('index') }}">Home</a> | <a href="{{ url_for('privacy') }}">Privacy Notice</a></p>
+    </footer>
+</body>
+</html>

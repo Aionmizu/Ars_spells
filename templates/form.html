@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Combo - Spell Combos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body>
+    <header>
+        <h1>Add New Spell Combo</h1>
+        <a href="{{ url_for('index') }}" class="button">Back to List</a>
+    </header>
+
+    <main>
+        <form method="POST" action="{{ url_for('add_combo') }}">
+            <div class="form-group">
+                <label for="name">Name *</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="spells">Spells *</label>
+                <textarea id="spells" name="spells" required placeholder="List the spells used in this combo"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Describe how this combo works"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="requirement">Requirement</label>
+                <input type="text" id="requirement" name="requirement" placeholder="Any special requirements for this combo">
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags</label>
+                <input type="text" id="tags" name="tags" placeholder="Comma-separated tags">
+            </div>
+
+            <div class="form-group">
+                <label for="creator">Creator</label>
+                <input type="text" id="creator" name="creator" value="{{ current_user.username if current_user.is_authenticated else '' }}" placeholder="Your name or nickname">
+                <small class="form-text">You can modify this field if needed</small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="button primary">Save Combo</button>
+                <a href="{{ url_for('index') }}" class="button secondary">Cancel</a>
+            </div>
+        </form>
+
+        <!-- HTMX Form for API submission -->
+        <div class="htmx-form" style="display: none;">
+            <form hx-post="{{ url_for('api_add_combo') }}" hx-redirect="{{ url_for('index') }}">
+                <!-- Same fields as above, used for HTMX submission -->
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <p>Spell Combos Database - Created with Flask and HTMX</p>
+        <p><a href="{{ url_for('index') }}">Home</a> | <a href="{{ url_for('privacy') }}">Privacy Notice</a></p>
+    </footer>
+</body>
+</html>

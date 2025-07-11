@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: spell-combos
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: WASABI_ACCESS_KEY
+        sync: false
+      - key: WASABI_SECRET_KEY
+        sync: false
+      - key: WASABI_BUCKET
+        value: spell-combos-backups
+      - key: WASABI_REGION
+        value: eu-north-1
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+
+  - type: cron
+    name: database-backup
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python backup.py
+    schedule: "0 0 * * *"  # Run daily at midnight
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: WASABI_ACCESS_KEY
+        sync: false
+      - key: WASABI_SECRET_KEY
+        sync: false
+      - key: WASABI_BUCKET
+        value: spell-combos-backups
+      - key: WASABI_REGION
+        value: eu-north-1
+      - key: DB_PATH
+        value: /data/combos.db
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
