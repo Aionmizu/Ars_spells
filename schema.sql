@@ -54,3 +54,20 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Create index for faster user queries
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+
+-- comments table for storing user comments on combos
+CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    combo_id INTEGER NOT NULL,
+    user_id INTEGER,
+    username TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (combo_id) REFERENCES combos(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Create index for faster comment queries
+CREATE INDEX IF NOT EXISTS idx_comments_combo_id ON comments(combo_id);
+CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);

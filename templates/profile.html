@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ username }}'s Profile - Spell Combos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 </head>
@@ -43,17 +46,26 @@
             <tbody>
                 {% for combo in combos %}
                 <tr class="{% if combo.patched %}patched{% endif %}">
-                    <td>{{ combo.name }}</td>
+                    <td><a href="{{ url_for('spell_detail', cid=combo.id) }}" class="spell-link">{{ combo.name }}</a></td>
                     <td>{{ combo.spells }}</td>
                     <td>{{ combo.description }}</td>
                     <td>{{ combo.requirement }}</td>
-                    <td>{{ combo.tags }}</td>
+                    <td>
+                        {% if combo.tags %}
+                            <div class="tag-container">
+                                {% for tag in combo.tags.split(',') %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
                     <td id="rating-{{ combo.id }}" 
                         hx-get="{{ url_for('get_rating', cid=combo.id) }}" 
-                        hx-trigger="load">
+                        hx-trigger="load"
+                        class="code">
                         Loading...
                     </td>
-                    <td>{{ "Yes" if combo.patched else "No" }}</td>
+                    <td><span class="chip {% if combo.patched %}patched{% else %}unpatched{% endif %}">{{ "Patched" if combo.patched else "Active" }}</span></td>
                     <td class="actions">
                         <div class="action-buttons">
                             <div class="vote-buttons">
@@ -82,6 +94,15 @@
                                         hx-swap="outerHTML swap:1s">
                                     Delete
                                 </button>
+                                {% if not combo.patched %}
+                                <button class="button small"
+                                        hx-post="{{ url_for('archive_combo', cid=combo.id) }}"
+                                        hx-confirm="Are you sure you want to archive this combo? This will mark it as patched."
+                                        hx-target="closest tr"
+                                        hx-swap="outerHTML swap:1s">
+                                    Archive
+                                </button>
+                                {% endif %}
                             </div>
                             {% endif %}
                             <div class="report-dropdown">

@@ -233,18 +233,42 @@ def index():
         # Search in name, spells, description, tags
         query = """
         SELECT * FROM combos 
-        WHERE name LIKE ? 
+        WHERE (name LIKE ? 
            OR spells LIKE ? 
            OR description LIKE ? 
-           OR tags LIKE ? 
+           OR tags LIKE ?)
+           AND patched = 0
         ORDER BY created_at DESC
         """
         search_param = f'%{search_query}%'
         combos = db.execute(query, (search_param, search_param, search_param, search_param)).fetchall()
     else:
-        combos = db.execute("SELECT * FROM combos ORDER BY created_at DESC").fetchall()
+        combos = db.execute("SELECT * FROM combos WHERE patched = 0 ORDER BY created_at DESC").fetchall()
 
     return render_template('index.html', combos=combos, search_query=search_query)
+
+@app.route('/archive')
+def archive():
+    db = get_db()
+    search_query = request.args.get('search', '')
+
+    if search_query:
+        # Search in name, spells, description, tags
+        query = """
+        SELECT * FROM combos 
+        WHERE (name LIKE ? 
+           OR spells LIKE ? 
+           OR description LIKE ? 
+           OR tags LIKE ?)
+           AND patched = 1
+        ORDER BY created_at DESC
+        """
+        search_param = f'%{search_query}%'
+        combos = db.execute(query, (search_param, search_param, search_param, search_param)).fetchall()
+    else:
+        combos = db.execute("SELECT * FROM combos WHERE patched = 1 ORDER BY created_at DESC").fetchall()
+
+    return render_template('archive.html', combos=combos, search_query=search_query)
 
 @app.route('/profile/<username>')
 def profile(username):
@@ -252,6 +276,67 @@ def profile(username):
     # Get all combos created by the user
     combos = db.execute("SELECT * FROM combos WHERE creator = ? ORDER BY created_at DESC", (username,)).fetchall()
     return render_template('profile.html', username=username, combos=combos)
+
+@app.route('/spell/<int:cid>', methods=['GET', 'POST'])
+def spell_detail(cid):
+    db = get_db()
+    # Get the combo details
+    combo = db.execute("SELECT * FROM combos WHERE id = ?", (cid,)).fetchone()
+
+    if combo is None:
+        flash('Spell not found', 'error')
+        return redirect(url_for('index'))
+
+    # Get comments for this combo
+    comments = db.execute("""
+        SELECT comments.*, users.username as user_username 
+        FROM comments 
+        LEFT JOIN users ON comments.user_id = users.id
+        WHERE combo_id = ? 
+        ORDER BY created_at DESC
+    """, (cid,)).fetchall()
+
+    # Handle comment submission
+    if request.method == 'POST':
+        content = request.form.get('content')
+        if not content:
+            flash('Comment cannot be empty', 'error')
+        else:
+            # Determine username and user_id
+            if current_user.is_authenticated:
+                username = current_user.username
+                user_id = current_user.id
+            else:
+                username = request.form.get('username', 'Anonymous')
+                user_id = None
+
+                # Check if username is already taken by a registered user
+                existing_user = User.get_by_username(username)
+                if existing_user and username != 'Anonymous':
+                    flash('This username is already taken by a registered user. Please choose another or login.', 'error')
+                    return render_template('spell_detail.html', combo=combo, comments=comments)
+
+            # Insert the comment
+            db.execute("""
+                INSERT INTO comments (combo_id, user_id, username, content)
+                VALUES (?, ?, ?, ?)
+            """, (cid, user_id, username, content))
+            db.commit()
+
+            # Refresh comments
+            comments = db.execute("""
+                SELECT comments.*, users.username as user_username 
+                FROM comments 
+                LEFT JOIN users ON comments.user_id = users.id
+                WHERE combo_id = ? 
+                ORDER BY created_at DESC
+            """, (cid,)).fetchall()
+
+            # Clear the form
+            if not current_user.is_authenticated:
+                return render_template('spell_detail.html', combo=combo, comments=comments, form_cleared=True)
+
+    return render_template('spell_detail.html', combo=combo, comments=comments)
 
 @app.route('/edit/<int:cid>', methods=['GET', 'POST'])
 @login_required
@@ -307,6 +392,25 @@ def delete_combo(cid):
 
     # Delete the combo
     db.execute("DELETE FROM combos WHERE id = ?", (cid,))
+    db.commit()
+
+    return '', 204
+
+@app.route('/archive/<int:cid>', methods=['POST'])
+@login_required
+def archive_combo(cid):
+    db = get_db()
+    combo = db.execute("SELECT * FROM combos WHERE id = ?", (cid,)).fetchone()
+
+    if combo is None:
+        return jsonify({'error': 'Combo not found'}), 404
+
+    # Check if the current user is the creator of the combo
+    if combo['creator'] != current_user.username:
+        return jsonify({'error': 'You can only archive your own combos'}), 403
+
+    # Archive the combo by setting patched to 1
+    db.execute("UPDATE combos SET patched = 1 WHERE id = ?", (cid,))
     db.commit()
 
     return '', 204
@@ -450,14 +554,37 @@ def ensure_reports_table_exists():
     """
     ensure_table_exists('reports', create_script, "Created missing reports table")
 
+def ensure_comments_table_exists():
+    """Check if the comments table exists and create it if it doesn't"""
+    create_script = """
+    -- comments table for storing user comments on combos
+    CREATE TABLE IF NOT EXISTS comments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        combo_id INTEGER NOT NULL,
+        user_id INTEGER,
+        username TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (combo_id) REFERENCES combos(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    -- Create index for faster comment queries
+    CREATE INDEX IF NOT EXISTS idx_comments_combo_id ON comments(combo_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
+    """
+    ensure_table_exists('comments', create_script, "Created missing comments table")
+
 # Initialize the database at startup
 with app.app_context():
     if not os.path.exists(app.config['DATABASE']):
         init_db()
     else:
-        # Ensure the users and reports tables exist in an existing database
+        # Ensure the users, reports, and comments tables exist in an existing database
         ensure_users_table_exists()
         ensure_reports_table_exists()
+        ensure_comments_table_exists()
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spell Combos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 </head>
 <body>
     <header>
-        <h1>Spell Combos</h1>
+        <h1>Spell Ars Nouveau</h1>
         <div class="header-actions">
             <form action="{{ url_for('index') }}" method="GET" class="search-form">
                 <input type="text" name="search" placeholder="Search combos..." value="{{ search_query or '' }}">
@@ -19,6 +22,7 @@
                 {% endif %}
             </form>
             <div class="auth-buttons">
+                <a href="{{ url_for('archive') }}" class="button">Archived Spells</a>
                 {% if current_user.is_authenticated %}
                     <span class="user-greeting">Hello, {{ current_user.username }}!</span>
                     <a href="{{ url_for('profile', username=current_user.username) }}" class="button">My Profile</a>
@@ -50,18 +54,27 @@
             <tbody>
                 {% for combo in combos %}
                 <tr class="{% if combo.patched %}patched{% endif %}">
-                    <td>{{ combo.name }}</td>
+                    <td><a href="{{ url_for('spell_detail', cid=combo.id) }}" class="spell-link">{{ combo.name }}</a></td>
                     <td>{{ combo.spells }}</td>
                     <td>{{ combo.description }}</td>
                     <td>{{ combo.requirement }}</td>
-                    <td>{{ combo.tags }}</td>
+                    <td>
+                        {% if combo.tags %}
+                            <div class="tag-container">
+                                {% for tag in combo.tags.split(',') %}
+                                    <span class="tag">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </td>
                     <td id="rating-{{ combo.id }}" 
                         hx-get="{{ url_for('get_rating', cid=combo.id) }}" 
-                        hx-trigger="load">
+                        hx-trigger="load"
+                        class="code">
                         Loading...
                     </td>
                     <td><a href="{{ url_for('profile', username=combo.creator) }}">{{ combo.creator }}</a></td>
-                    <td>{{ "Yes" if combo.patched else "No" }}</td>
+                    <td><span class="chip {% if combo.patched %}patched{% else %}unpatched{% endif %}">{{ "Patched" if combo.patched else "Active" }}</span></td>
                     <td class="actions">
                         <div class="action-buttons">
                             <div class="vote-buttons">
@@ -106,7 +119,7 @@
     </main>
 
     <footer>
-        <p>Spell Combos Database - Created with Flask and HTMX</p>
+        <p>Spell Ars nouveau Database - Created with Flask and HTMX</p>
         <p><a href="{{ url_for('index') }}">Home</a> | <a href="{{ url_for('privacy') }}">Privacy Notice</a></p>
     </footer>
 </body>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ combo.name }} - Spell Combo Details</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+</head>
+<body>
+    <header>
+        <h1>{{ combo.name }}</h1>
+        <div class="header-actions">
+            <a href="{{ url_for('index') }}" class="button">Back to List</a>
+            {% if current_user.is_authenticated and current_user.username == combo.creator %}
+                <a href="{{ url_for('edit_combo', cid=combo.id) }}" class="button">Edit Spell</a>
+                {% if not combo.patched %}
+                <button class="button"
+                        hx-post="{{ url_for('archive_combo', cid=combo.id) }}"
+                        hx-confirm="Are you sure you want to archive this combo? This will mark it as patched."
+                        hx-target=".detail-card"
+                        hx-swap="outerHTML">
+                    Archive Spell
+                </button>
+                {% endif %}
+            {% endif %}
+        </div>
+    </header>
+
+    <main>
+        <div class="spell-details">
+            <div class="detail-card">
+                <h2>Spell Details</h2>
+                <div class="detail-row">
+                    <strong>Spells:</strong> {{ combo.spells }}
+                </div>
+                <div class="detail-row">
+                    <strong>Description:</strong> {{ combo.description }}
+                </div>
+                <div class="detail-row">
+                    <strong>Requirement:</strong> {{ combo.requirement }}
+                </div>
+                <div class="detail-row">
+                    <strong>Tags:</strong> 
+                    {% if combo.tags %}
+                        <div class="tag-container">
+                            {% for tag in combo.tags.split(',') %}
+                                <span class="tag">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <em>No tags</em>
+                    {% endif %}
+                </div>
+                <div class="detail-row">
+                    <strong>Creator:</strong> <a href="{{ url_for('profile', username=combo.creator) }}" class="spell-link">{{ combo.creator }}</a>
+                </div>
+                <div class="detail-row">
+                    <strong>Created:</strong> <span class="code">{{ combo.created_at }}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>Status:</strong> <span class="chip {% if combo.patched %}patched{% else %}unpatched{% endif %}">{{ "Patched" if combo.patched else "Active" }}</span>
+                </div>
+                <div class="detail-row">
+                    <strong>Rating:</strong> 
+                    <span id="rating-{{ combo.id }}" 
+                          hx-get="{{ url_for('get_rating', cid=combo.id) }}" 
+                          hx-trigger="load"
+                          class="code">
+                        Loading...
+                    </span>
+                </div>
+                <div class="action-buttons">
+                    <div class="vote-buttons">
+                        <button class="vote-btn" 
+                                hx-post="{{ url_for('vote', cid=combo.id) }}" 
+                                hx-vals='{"vote": "1"}' 
+                                hx-target="#rating-{{ combo.id }}" 
+                                hx-swap="innerHTML">
+                            👍
+                        </button>
+                        <button class="vote-btn" 
+                                hx-post="{{ url_for('vote', cid=combo.id) }}" 
+                                hx-vals='{"vote": "0"}' 
+                                hx-target="#rating-{{ combo.id }}" 
+                                hx-swap="innerHTML">
+                            👎
+                        </button>
+                    </div>
+                    <div class="report-dropdown">
+                        <button class="report-btn">Report ⚠️</button>
+                        <div class="report-options">
+                            <button class="report-option"
+                                    hx-post="{{ url_for('report', cid=combo.id) }}"
+                                    hx-vals='{"type": "inappropriate"}'
+                                    hx-confirm="Report this combo as inappropriate?">
+                                Inappropriate
+                            </button>
+                            <button class="report-option"
+                                    hx-post="{{ url_for('report', cid=combo.id) }}"
+                                    hx-vals='{"type": "patched"}'
+                                    hx-confirm="Report this combo as patched?">
+                                Patched
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="comments-section">
+            <h2>Comments</h2>
+
+            <!-- Comment Form -->
+            <div class="comment-form">
+                <h3>Add a Comment</h3>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages">
+                            {% for category, message in messages %}
+                                <div class="flash-message {{ category }}">{{ message }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('spell_detail', cid=combo.id) }}">
+                    {% if not current_user.is_authenticated %}
+                        <div class="form-group">
+                            <label for="username">Your Name</label>
+                            <input type="text" id="username" name="username" value="{{ request.form.get('username', '') if not form_cleared else '' }}" placeholder="Anonymous" required>
+                            <small class="form-text">Note: You cannot use a username that belongs to a registered user.</small>
+                        </div>
+                    {% endif %}
+
+                    <div class="form-group">
+                        <label for="content">Comment</label>
+                        <textarea id="content" name="content" rows="4" required>{{ request.form.get('content', '') if not form_cleared else '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="button primary">Post Comment</button>
+                </form>
+            </div>
+
+            <!-- Comments List -->
+            <div class="comments-list">
+                {% if comments|length == 0 %}
+                    <p class="no-comments">No comments yet. Be the first to comment!</p>
+                {% else %}
+                    {% for comment in comments %}
+                        <div class="comment">
+                            <div class="comment-header">
+                                <span class="comment-author">
+                                    {% if comment.user_id %}
+                                        <a href="{{ url_for('profile', username=comment.user_username or comment.username) }}">
+                                            {{ comment.user_username or comment.username }}
+                                        </a>
+                                    {% else %}
+                                        {{ comment.username }}
+                                    {% endif %}
+                                </span>
+                                <span class="comment-date">{{ comment.created_at }}</span>
+                            </div>
+                            <div class="comment-content">
+                                {{ comment.content }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Spell Combos Database - Created with Flask and HTMX</p>
+        <p><a href="{{ url_for('index') }}">Home</a> | <a href="{{ url_for('privacy') }}">Privacy Notice</a></p>
+    </footer>
+</body>
+</html>
